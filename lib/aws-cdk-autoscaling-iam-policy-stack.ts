@@ -42,5 +42,18 @@ export class AwsCdkAutoscalingIamPolicyStack extends cdk.Stack {
       port: 80,
       targets: [autoScalingGroup],
     });
+
+    const iamRole = new cdk.aws_iam.Role(this, 'IAMRole', {
+      assumedBy: new cdk.aws_iam.ServicePrincipal('ec2.amazonaws.com'),
+      roleName: 'EC2Role',
+      managedPolicies: [
+        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
+      ],
+    });
+
+    const instanceProfile = new cdk.aws_iam.InstanceProfile(this, 'InstanceProfile', {
+      role: iamRole,
+      instanceProfileName: 'EC2Role'
+    });
   }
 }
