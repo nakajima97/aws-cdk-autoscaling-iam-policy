@@ -1,16 +1,46 @@
 import * as cdk from 'aws-cdk-lib';
+import { Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class AwsCdkAutoscalingIamPolicyStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    const vpc = new Vpc(this, 'VPC', {
+      ipAddresses: cdk.aws_ec2.IpAddresses.cidr('10.0.0.0/16'),
+      maxAzs: 2,
+    });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'AwsCdkAutoscalingIamPolicyQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    const securityGroup = new cdk.aws_ec2.SecurityGroup(this, 'SecurityGroup', {
+      vpc,
+      allowAllOutbound: true,
+    });
+
+    const launchTemplate = new cdk.aws_ec2.LaunchTemplate(this, 'LaunchTemplate', {
+      machineImage: cdk.aws_ec2.MachineImage.latestAmazonLinux2023(),
+      instanceType: cdk.aws_ec2.InstanceType.of(cdk.aws_ec2.InstanceClass.T3, cdk.aws_ec2.InstanceSize.MICRO),
+      securityGroup
+    });
+
+    const autoScalingGroup = new cdk.aws_autoscaling.AutoScalingGroup(this, 'ASG', {
+      vpc,
+      launchTemplate,
+      minCapacity: 2,
+    });
+
+    const alb = new cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer(this, 'ALB', {
+      vpc,
+      internetFacing: true,
+    });
+
+    const listener = alb.addListener('Listener', {
+      port: 80,
+      open: true,
+    });
+
+    listener.addTargets('Target', {
+      port: 80,
+      targets: [autoScalingGroup],
+    });
   }
 }
