@@ -16,10 +16,24 @@ export class AwsCdkAutoscalingIamPolicyStack extends cdk.Stack {
       allowAllOutbound: true,
     });
 
+    const iamRole = new cdk.aws_iam.Role(this, 'IAMRole', {
+      assumedBy: new cdk.aws_iam.ServicePrincipal('ec2.amazonaws.com'),
+      roleName: 'EC2Role',
+      managedPolicies: [
+        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
+      ],
+    });
+
+    const instanceProfile = new cdk.aws_iam.InstanceProfile(this, 'InstanceProfile', {
+      role: iamRole,
+      instanceProfileName: 'EC2Role'
+    });
+
     const launchTemplate = new cdk.aws_ec2.LaunchTemplate(this, 'LaunchTemplate', {
       machineImage: cdk.aws_ec2.MachineImage.latestAmazonLinux2023(),
       instanceType: cdk.aws_ec2.InstanceType.of(cdk.aws_ec2.InstanceClass.T3, cdk.aws_ec2.InstanceSize.MICRO),
-      securityGroup
+      securityGroup,
+      instanceProfile,
     });
 
     const autoScalingGroup = new cdk.aws_autoscaling.AutoScalingGroup(this, 'ASG', {
@@ -41,19 +55,6 @@ export class AwsCdkAutoscalingIamPolicyStack extends cdk.Stack {
     listener.addTargets('Target', {
       port: 80,
       targets: [autoScalingGroup],
-    });
-
-    const iamRole = new cdk.aws_iam.Role(this, 'IAMRole', {
-      assumedBy: new cdk.aws_iam.ServicePrincipal('ec2.amazonaws.com'),
-      roleName: 'EC2Role',
-      managedPolicies: [
-        cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
-      ],
-    });
-
-    const instanceProfile = new cdk.aws_iam.InstanceProfile(this, 'InstanceProfile', {
-      role: iamRole,
-      instanceProfileName: 'EC2Role'
     });
   }
 }
